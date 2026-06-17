@@ -654,6 +654,198 @@ def mat_sym_eig(M, n_components=None, max_iter=1000, tol=1e-10):
     return eigenvalues, eigenvectors
 
 
+# ─── Symmetric Matrix Square Root Inverse ────────────────────────────────────
+# Used to transform generalized eigenvalue problems into standard form
+
+def mat_sym_sqrt_inv(S):
+    """
+    Compute symmetric square root inverse: S^{-1/2}
+
+    For a symmetric positive-definite matrix S with eigendecomposition
+    S = V Λ V^T, the symmetric square root inverse is:
+
+        S^{-1/2} = V Λ^{-1/2} V^T
+
+    where Λ^{-1/2} = diag(1/√λ₁, 1/√λ₂, ..., 1/√λₙ).
+
+    Why this matters for LDA
+    ------------------------
+    The generalized eigenvalue problem  S_W^{-1} S_B w = λ w  produces a
+    matrix M = S_W^{-1} S_B that is generally NOT symmetric, even though both
+    S_W and S_B are symmetric. Power iteration on a non-symmetric matrix can
+    give wrong results.
+
+    Using S_W^{-1/2}, we can transform to:
+        A = S_W^{-1/2} S_B S_W^{-1/2}
+    which IS symmetric (since S_B is symmetric). Then standard symmetric
+    eigenvalue solvers (power iteration) work correctly.
+
+    The eigenvectors u of A relate to the original problem's eigenvectors w by:
+        w = S_W^{-1/2} u
+
+    Properties
+    ----------
+    - S^{-1/2} is symmetric (since S is symmetric)
+    - S^{-1/2} @ S^{-1/2} = S^{-1}  (square root property)
+    - S^{-1/2} @ S @ S^{-1/2} = I    (whitening property)
+
+    Parameters
+    ----------
+    S : list[list[float]]
+        Symmetric positive-definite matrix of shape (n × n).
+        Must have all positive eigenvalues (enforced by regularization
+        in the caller if needed).
+
+    Returns
+    -------
+    list[list[float]]
+        The symmetric square root inverse S^{-1/2}, shape (n × n).
+
+    Raises
+    ------
+    ValueError
+        If any eigenvalue is non-positive (matrix not positive-definite).
+
+    Example
+    -------
+    S = [[4, 0], [0, 9]]
+    S_inv_sqrt = mat_sym_sqrt_inv(S)
+    # S_inv_sqrt ≈ [[0.5, 0], [0, 0.333]]  (diag of 1/√4, 1/√9)
+    """
+    n = len(S)
+
+    # Step 1: Full eigendecomposition of S (all n eigenvalues/eigenvectors)
+    # Since S is symmetric positive-definite, all eigenvalues should be positive.
+    eigenvalues, eigenvectors = mat_sym_eig(S, n_components=n)
+
+    # Step 2: Compute Λ^{-1/2} with numerical safety
+    # Due to floating-point arithmetic in power iteration + deflation,
+    # eigenvalues that are mathematically zero (or very small positive)
+    # may appear as tiny negative numbers (e.g., -1e-14).
+    # We clamp these to a small positive floor to ensure stability.
+    EPS_FLOOR = 1e-10
+    inv_sqrt_evals = []
+    for lam in eigenvalues:
+        lam_safe = max(lam, EPS_FLOOR)  # Clamp to prevent sqrt of negative
+        inv_sqrt_evals.append(1.0 / (lam_safe ** 0.5))
+
+    # Step 3: Reconstruct S^{-1/2} = Σ_k (1/√λ_k) * v_k * v_k^T
+    # This is the direct element-wise formula, avoiding the need for
+    # an intermediate scaled matrix multiplication.
+    #
+    # Note: eigenvectors from mat_sym_eig are returned as a list of row
+    # vectors (each eigenvector is a flat list), so v_k = eigenvectors[k].
+    result = mat_zeros(n, n)
+    for k in range(n):
+        scale = inv_sqrt_evals[k]
+        v = eigenvectors[k]
+        for i in range(n):
+            for j in range(n):
+                result[i][j] += scale * v[i] * v[j]
+
+    return result
+
+
+# ─── Cross-Validation Utilities ─────────────────────────────────────────────
+# Stratified k-fold splitting for model evaluation
+
+def stratified_k_fold(y, k=5, seed=42):
+    """
+    Generate k stratified folds for cross-validation.
+
+    Each fold's validation set preserves (approximately) the same class
+    proportions as the full dataset, which is critical for classification
+    tasks where classes may be imbalanced.
+
+    Algorithm
+    ---------
+    1. Group sample indices by class label.
+    2. Shuffle each class's indices independently using a Linear Congruential
+       Generator (LCG) seeded with ``seed``.  Using an LCG instead of
+       Python's ``random`` module ensures full reproducibility without any
+       external state and keeps the implementation dependency-free.
+    3. Distribute each class's indices round-robin across k folds.
+    4. For each fold f ∈ {0, …, k-1}: validation = fold f,
+       training = union of all other folds.
+
+    Why stratified rather than plain random splitting?
+    ---------------------------------------------------
+    • In datasets with unequal class sizes (e.g. 60 / 30 / 10), a plain
+      random split can produce validation folds that contain very few (or
+      zero) samples from minority classes, giving noisy or biased accuracy
+      estimates.
+    • Stratification guarantees that every fold "sees" every class, making
+      accuracy estimates lower-variance and more representative.
+
+    Parameters
+    ----------
+    y : list[int]
+        Class labels for each sample, length n.
+    k : int, default=5
+        Number of folds.  Must satisfy 1 < k ≤ n.
+    seed : int, default=42
+        Seed for the LCG used to shuffle indices within each class.
+        Same seed ⇒ same splits, regardless of platform.
+
+    Returns
+    -------
+    list[tuple[list[int], list[int]]]
+        A list of k tuples ``(train_indices, val_indices)``.
+        All indices are integers in [0, n).  The union of ``val_indices``
+        across all k folds equals the full index set {0, …, n-1}.
+
+    Example
+    -------
+    y = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2]
+    folds = stratified_k_fold(y, k=2, seed=0)
+    train_0, val_0 = folds[0]
+    train_1, val_1 = folds[1]
+    # Each val set has ~2 class-0, ~2 class-1, ~1 class-2 samples.
+    """
+    n = len(y)
+
+    # ── Step 1: Group indices by class ────────────────────────────────────
+    class_indices = {}
+    for idx, label in enumerate(y):
+        if label not in class_indices:
+            class_indices[label] = []
+        class_indices[label].append(idx)
+
+    # ── Step 2: Shuffle each class's indices with LCG ─────────────────────
+    # LCG parameters (same constants used by Numerical Recipes / glibc):
+    #   state_{n+1} = (a · state_n + c) mod m
+    LCG_A = 1664525
+    LCG_C = 1013904223
+    LCG_M = 2 ** 32
+    state = seed & 0xFFFFFFFF  # ensure unsigned 32-bit
+
+    for label in sorted(class_indices.keys()):
+        indices = class_indices[label]
+        # Fisher–Yates shuffle driven by LCG
+        for i in range(len(indices) - 1, 0, -1):
+            state = (LCG_A * state + LCG_C) % LCG_M
+            j = state % (i + 1)
+            indices[i], indices[j] = indices[j], indices[i]
+
+    # ── Step 3: Distribute indices round-robin into k buckets ─────────────
+    folds = [[] for _ in range(k)]
+    for label in sorted(class_indices.keys()):
+        for pos, idx in enumerate(class_indices[label]):
+            folds[pos % k].append(idx)
+
+    # ── Step 4: Build (train, val) pairs ──────────────────────────────────
+    result = []
+    for f in range(k):
+        val_indices = folds[f]
+        train_indices = []
+        for other in range(k):
+            if other != f:
+                train_indices.extend(folds[other])
+        result.append((train_indices, val_indices))
+
+    return result
+
+
 # ─── Statistics ──────────────────────────────────────────────────────────────
 # Used for computing data statistics needed by LDA
 

@@ -39,6 +39,7 @@ All math operations are built from scratch (no NumPy/SciPy).
 from src.lda.math_utils import (
     mat_zeros, mat_add, mat_scale, mat_mul, mat_inv,
     mat_vec_mul, mat_transpose, mat_sym_eig,
+    mat_sym_sqrt_inv, mat_eye,
     mean_vector, outer, vec_sub, dot, norm
 )
 
@@ -65,6 +66,25 @@ class LDA:
         If None, defaults to n_classes - 1.
         Example: For 3-class problem, n_components=2
         
+    shrinkage : float or None, default=None
+        Ledoit-Wolf style regularization parameter in [0, 1].
+        Controls the trade-off between the empirical within-class
+        covariance and a diagonal (spherical) estimate:
+        
+            S_W_reg = (1 - α) * S_W + α * (tr(S_W) / D) * I
+        
+        Why shrinkage matters:
+        - Regularizes ill-conditioned S_W matrices, which occur when
+          the number of features is close to the number of samples
+        - Prevents numerical instability with collinear features
+          (near-zero eigenvalues cause S_W^{-1/2} to explode)
+        - Trades off the empirical covariance (low bias, high variance)
+          vs a diagonal estimate (high bias, low variance)
+        - α=0 uses the empirical S_W (no regularization)
+        - α=1 replaces S_W with a scaled identity (maximum regularization)
+        - If None, a small default regularization eps * I is applied
+          (eps = 1e-6 * trace(S_W) / D) to prevent singular matrices
+        
     Attributes (after fitting)
     ----------
     scalings_ : list[list[float]]
@@ -84,8 +104,9 @@ class LDA:
         Raw eigenvalues from S_W^-1 S_B (for reference)
     """
 
-    def __init__(self, n_components=None):
+    def __init__(self, n_components=None, shrinkage=None):
         self.n_components = n_components
+        self.shrinkage = shrinkage
         self.scalings_ = None        # Projection matrix W  [n_features × n_components]
         self.means_ = None           # Class means {label: [n_features]}
         self.overall_mean_ = None    # Global mean vector
@@ -109,8 +130,12 @@ class LDA:
         2. Compute per-class means (center of each class)
         3. Calculate S_W: within-class scatter matrix
         4. Calculate S_B: between-class scatter matrix
-        5. Solve: S_W^-1 S_B w = λ w (generalized eigenvalue problem)
-        6. Take top C-1 eigenvectors as projection matrix
+        5. Apply shrinkage regularization to S_W (if configured)
+        6. Compute S_W^{-1/2} via eigendecomposition
+        7. Transform to symmetric problem: A = S_W^{-1/2} S_B S_W^{-1/2}
+        8. Solve standard eigenvalue problem on A (power iteration)
+        9. Back-transform eigenvectors: w = S_W^{-1/2} u
+        10. Take top C-1 eigenvectors as projection matrix
         
         Parameters
         ----------
@@ -126,9 +151,16 @@ class LDA:
         self : LDA
             Returns self for method chaining (fit().transform())
             
+        Notes
+        -----
+        If ``shrinkage`` is set, Ledoit-Wolf style regularization is applied
+        to S_W before computing the square root inverse. Otherwise, a small
+        default regularization (eps * I, eps = 1e-6 * trace(S_W) / D) is
+        applied to ensure S_W is positive-definite.
+            
         Example
         -------
-        model = LDA(n_components=2)
+        model = LDA(n_components=2, shrinkage=0.1)
         model.fit(X_train, y_train)
         # Now model.scalings_ contains the projection matrix
         """
@@ -170,30 +202,108 @@ class LDA:
             diff = vec_sub(self.means_[c], self.overall_mean_)  # Class mean - global mean
             S_B = mat_add(S_B, mat_scale(outer(diff, diff), n_c))  # Weighted outer product
 
-        # ── Step 5: Solve generalized eigenvalue problem: S_W^-1 S_B w = λ w
-        # This finds directions where classes are best separated
-        try:
-            S_W_inv = mat_inv(S_W)
-        except ValueError:
-            # If S_W is singular (non-invertible), add small regularization
-            eps = 1e-4
+        # ── Step 5: Regularize S_W to ensure positive-definiteness ─────────
+        #
+        # S_W must be positive-definite to compute S_W^{-1/2}. This can fail
+        # when: (a) features are collinear, (b) n_samples < n_features, or
+        # (c) classes have very low variance in some direction.
+        #
+        # Two regularization strategies are supported:
+        #   1. Shrinkage (if self.shrinkage is set): Ledoit-Wolf style blend
+        #      of empirical S_W with a scaled identity matrix
+        #   2. Default (if self.shrinkage is None): add a tiny eps * I
+        #      proportional to the feature magnitude
+
+        trace_sw = sum(S_W[i][i] for i in range(n_features))
+
+        if self.shrinkage is not None:
+            # ── Ledoit-Wolf style shrinkage ────────────────────────────────
+            # S_W_reg = (1 - α) * S_W + α * (tr(S_W) / D) * I
+            #
+            # This interpolates between:
+            #   α=0: pure empirical covariance (no regularization)
+            #   α=1: scaled identity (maximum regularization, all directions equal)
+            #
+            # The target (tr(S_W)/D) * I preserves the average variance while
+            # making all directions equally weighted, which eliminates
+            # ill-conditioning from collinear features.
+            alpha = self.shrinkage
+            target_var = trace_sw / n_features  # Average per-feature variance
+            for i in range(n_features):
+                for j in range(n_features):
+                    S_W[i][j] = (1 - alpha) * S_W[i][j]
+                    if i == j:
+                        S_W[i][j] += alpha * target_var
+        else:
+            # ── Default minimal regularization ────────────────────────────
+            # Add eps * I where eps is scaled to the data magnitude.
+            # Using trace(S_W)/D as scale factor ensures the regularization
+            # is proportional to the average feature variance, not an
+            # arbitrary fixed constant like the old eps=1e-4.
+            eps = 1e-6 * trace_sw / n_features if trace_sw > 0 else 1e-10
             for i in range(n_features):
                 S_W[i][i] += eps
-            S_W_inv = mat_inv(S_W)
 
-        # Compute M = S_W^-1 S_B
-        M = mat_mul(S_W_inv, S_B)
+        # ── Step 6: Transform to symmetric eigenvalue problem ─────────────
+        #
+        # MATHEMATICAL BACKGROUND:
+        # The generalized eigenvalue problem is:  S_B w = λ S_W w
+        # which is equivalent to:  S_W^{-1} S_B w = λ w
+        #
+        # The OLD (WRONG) approach was:
+        #   M = S_W^{-1} S_B
+        #   M_sym = 0.5 * (M + M^T)   ← INVALID symmetrization!
+        #
+        # Why that was wrong:
+        #   M = S_W^{-1} S_B is NOT symmetric in general (even though
+        #   S_W and S_B individually are symmetric). Forcing symmetry via
+        #   0.5*(M + M^T) changes the eigenvectors of M, so the resulting
+        #   projection directions are NOT the true LDA solution. The
+        #   eigenvalues are also altered. This is not just a numerical
+        #   issue — it's a fundamental mathematical error.
+        #
+        # The CORRECT approach (used here):
+        #   1. Compute S_W^{-1/2} (symmetric square root inverse)
+        #   2. Form A = S_W^{-1/2} S_B S_W^{-1/2}
+        #   3. A IS symmetric (proof: A^T = (S_W^{-1/2})^T S_B^T (S_W^{-1/2})^T
+        #                                = S_W^{-1/2} S_B S_W^{-1/2} = A)
+        #   4. Solve A u = λ u (standard symmetric eigenproblem)
+        #   5. Recover w = S_W^{-1/2} u
+        #
+        # This preserves the generalized eigenvalue solution exactly:
+        #   S_B w = λ S_W w  ↔  S_W^{-1/2} S_B S_W^{-1/2} u = λ u
+        #   with  w = S_W^{-1/2} u
+        #
+        # The shrinkage/regularization is applied BEFORE computing S_W^{-1/2}
+        # to ensure S_W is positive-definite (all eigenvalues > 0), which is
+        # required for the square root inverse to exist.
 
-        # Symmetrize for numerical stability in eigendecomposition
-        # This helps power iteration converge faster and more reliably
-        M_sym = [[0.5 * (M[i][j] + M[j][i])
-                  for j in range(n_features)]
-                 for i in range(n_features)]
+        # Compute S_W^{-1/2} via eigendecomposition of regularized S_W
+        S_W_inv_sqrt = mat_sym_sqrt_inv(S_W)
 
-        # ── Step 6: Extract top n_components eigenvectors via power iteration
-        eigenvalues, eigenvectors = mat_sym_eig(
-            M_sym, n_components=self.n_components
+        # Form the symmetric matrix A = S_W^{-1/2} S_B S_W^{-1/2}
+        temp = mat_mul(S_W_inv_sqrt, S_B)
+        A = mat_mul(temp, S_W_inv_sqrt)
+
+        # ── Step 7: Extract top n_components eigenvectors via power iteration
+        # Because A is truly symmetric, power iteration with deflation is
+        # mathematically valid and will converge to the correct eigenvectors.
+        eigenvalues, eigenvectors_u = mat_sym_eig(
+            A, n_components=self.n_components
         )
+
+        # ── Step 8: Back-transform eigenvectors to original space ─────────
+        # The eigenvectors u of A correspond to the transformed space.
+        # To get the LDA projection directions w in the original feature
+        # space, we compute: w = S_W^{-1/2} u
+        # Then normalize to unit length for numerical consistency.
+        eigenvectors = []
+        for u in eigenvectors_u:
+            w = mat_vec_mul(S_W_inv_sqrt, u)
+            w_norm = norm(w)
+            if w_norm > 1e-15:
+                w = [x / w_norm for x in w]
+            eigenvectors.append(w)
 
         self._eigenvalues = eigenvalues
 

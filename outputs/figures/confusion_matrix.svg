@@ -8,22 +8,22 @@
 <text x="70" y="120" text-anchor="end" fill="#ccc" font-size="12">Class 1</text>
 <text x="70" y="190" text-anchor="end" fill="#ccc" font-size="12">Class 2</text>
 <text x="70" y="260" text-anchor="end" fill="#ccc" font-size="12">Class 3</text>
-<rect x="80" y="80" width="70" height="70" fill="rgb(56,119,114)" stroke="#1a1a2e" stroke-width="2"/>
-<text x="115" y="121" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">11</text>
+<rect x="80" y="80" width="70" height="70" fill="rgb(42,157,143)" stroke="#1a1a2e" stroke-width="2"/>
+<text x="115" y="121" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">17</text>
 <rect x="150" y="80" width="70" height="70" fill="rgb(26,26,46)" stroke="#1a1a2e" stroke-width="2"/>
 <text x="185" y="121" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">0</text>
 <rect x="220" y="80" width="70" height="70" fill="rgb(26,26,46)" stroke="#1a1a2e" stroke-width="2"/>
 <text x="255" y="121" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">0</text>
-<rect x="80" y="150" width="70" height="70" fill="rgb(50,29,48)" stroke="#1a1a2e" stroke-width="2"/>
-<text x="115" y="191" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">2</text>
-<rect x="150" y="150" width="70" height="70" fill="rgb(49,138,128)" stroke="#1a1a2e" stroke-width="2"/>
-<text x="185" y="191" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">14</text>
-<rect x="220" y="150" width="70" height="70" fill="rgb(38,27,47)" stroke="#1a1a2e" stroke-width="2"/>
-<text x="255" y="191" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">1</text>
+<rect x="80" y="150" width="70" height="70" fill="rgb(26,26,46)" stroke="#1a1a2e" stroke-width="2"/>
+<text x="115" y="191" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">0</text>
+<rect x="150" y="150" width="70" height="70" fill="rgb(42,157,143)" stroke="#1a1a2e" stroke-width="2"/>
+<text x="185" y="191" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">17</text>
+<rect x="220" y="150" width="70" height="70" fill="rgb(26,26,46)" stroke="#1a1a2e" stroke-width="2"/>
+<text x="255" y="191" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">0</text>
 <rect x="80" y="220" width="70" height="70" fill="rgb(26,26,46)" stroke="#1a1a2e" stroke-width="2"/>
 <text x="115" y="261" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">0</text>
 <rect x="150" y="220" width="70" height="70" fill="rgb(26,26,46)" stroke="#1a1a2e" stroke-width="2"/>
 <text x="185" y="261" text-anchor="middle" fill="#ccc" font-size="18" font-weight="bold">0</text>
-<rect x="220" y="220" width="70" height="70" fill="rgb(42,157,143)" stroke="#1a1a2e" stroke-width="2"/>
-<text x="255" y="261" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">17</text>
+<rect x="220" y="220" width="70" height="70" fill="rgb(56,119,114)" stroke="#1a1a2e" stroke-width="2"/>
+<text x="255" y="261" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">11</text>
 </svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 400" width="700" height="400">
+  <rect width="700" height="400" fill="#1a1a2e"/>
+  <text x="350.0" y="35" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="bold" text-anchor="middle">Algorithm Comparison (Wine Dataset)</text>
+  <g stroke="#ffffff" stroke-opacity="0.2" stroke-width="1">
+    <line x1="80" y1="340.0" x2="660" y2="340.0"/>
+    <text x="70" y="345.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">90%</text>
+    <line x1="80" y1="284.0" x2="660" y2="284.0"/>
+    <text x="70" y="289.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">92%</text>
+    <line x1="80" y1="227.99999999999997" x2="660" y2="227.99999999999997"/>
+    <text x="70" y="232.99999999999997" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">94%</text>
+    <line x1="80" y1="171.99999999999997" x2="660" y2="171.99999999999997"/>
+    <text x="70" y="176.99999999999997" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">96%</text>
+    <line x1="80" y1="115.99999999999994" x2="660" y2="115.99999999999994"/>
+    <text x="70" y="120.99999999999994" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">98%</text>
+    <line x1="80" y1="59.99999999999994" x2="660" y2="59.99999999999994"/>
+    <text x="70" y="64.99999999999994" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">100%</text>
+  </g>
+  <text x="25" y="200.0" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle" transform="rotate(-90 25 200.0)">Cross-Validation Accuracy</text>
+  <rect x="132.0" y="138.27239003709587" width="80" height="201.72760996290413" fill="#f4a261" rx="4" ry="4"/>
+  <text x="172.0" y="128.27239003709587" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">97.20%</text>
+  <text x="172.0" y="360" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">KNN (k=5)</text>
+  <rect x="264.0" y="138.76700229641423" width="80" height="201.23299770358577" fill="#e76f51" rx="4" ry="4"/>
+  <text x="304.0" y="128.76700229641423" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">97.19%</text>
+  <text x="304.0" y="360" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">Gaussian NB</text>
+  <rect x="396.0" y="122.27027027027034" width="80" height="217.72972972972966" fill="#8ab17d" rx="4" ry="4"/>
+  <text x="436.0" y="112.27027027027034" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">97.78%</text>
+  <text x="436.0" y="360" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">Logistic Reg</text>
+  <rect x="528.0" y="91.13513513513516" width="80" height="248.86486486486484" fill="#2a9d8f" rx="4" ry="4"/>
+  <text x="568.0" y="81.13513513513516" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">98.89%</text>
+  <text x="568.0" y="360" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">LDA (shrink=None)</text>
+</svg>

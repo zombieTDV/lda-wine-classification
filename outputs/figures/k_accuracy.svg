@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <rect width="600" height="400" fill="#1a1a2e"/>
+  <text x="300.0" y="35" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="bold" text-anchor="middle">Number of Components (K) vs Accuracy</text>
+  <g stroke="#ffffff" stroke-opacity="0.2" stroke-width="1">
+    <line x1="80" y1="340.0" x2="560" y2="340.0"/>
+    <text x="70" y="345.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">0.900</text>
+    <line x1="80" y1="284.0" x2="560" y2="284.0"/>
+    <text x="70" y="289.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">0.920</text>
+    <line x1="80" y1="228.0" x2="560" y2="228.0"/>
+    <text x="70" y="233.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">0.940</text>
+    <line x1="80" y1="172.0" x2="560" y2="172.0"/>
+    <text x="70" y="177.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">0.960</text>
+    <line x1="80" y1="116.0" x2="560" y2="116.0"/>
+    <text x="70" y="121.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">0.980</text>
+    <line x1="80" y1="60.0" x2="560" y2="60.0"/>
+    <text x="70" y="65.0" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">1.000</text>
+  </g>
+  <text x="300.0" y="385" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle">Number of Components (K)</text>
+  <text x="25" y="200.0" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle" transform="rotate(-90 25 200.0)">Cross-Validation Accuracy</text>
+  <rect x="186.66666666666669" y="295.86149057075255" width="80" height="44.13850942924743" fill="#2a9d8f" rx="4" ry="4"/>
+  <text x="226.66666666666669" y="285.86149057075255" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">91.6%</text>
+  <text x="226.66666666666669" y="360" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">1</text>
+  <rect x="373.33333333333337" y="75.16894342451513" width="80" height="264.83105657548487" fill="#e9c46a" rx="4" ry="4"/>
+  <text x="413.33333333333337" y="65.16894342451513" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">99.5%</text>
+  <text x="413.33333333333337" y="360" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">2</text>
+</svg>

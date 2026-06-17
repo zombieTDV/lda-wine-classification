@@ -493,3 +493,183 @@ def heatmap_confusion(CM_dict, classes,
         f.write(content)
     print(f"  [Plot] Saved: {out_path}")
     return out_path
+
+
+def line_chart_shrinkage(shrinkage_results, best_alpha, 
+                         title="Shrinkage (α) vs Accuracy", 
+                         out_path="outputs/figures/shrinkage_accuracy.svg"):
+    """
+    Create a line chart showing accuracy across different shrinkage values.
+    
+    Parameters
+    ----------
+    shrinkage_results : list[dict]
+        Results from grid_search_shrinkage
+    best_alpha : float
+        The optimal shrinkage value to highlight
+    title : str
+        Plot title
+    out_path : str
+        File path to save the SVG
+    """
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    
+    W, H = 800, 500
+    margin = {"top": 60, "right": 40, "bottom": 60, "left": 80}
+    plot_w = W - margin["left"] - margin["right"]
+    plot_h = H - margin["top"] - margin["bottom"]
+    
+    svg = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">',
+        f'  <rect width="{W}" height="{H}" fill="#1a1a2e"/>',
+        f'  <text x="{W/2}" y="35" fill="#ffffff" font-family="sans-serif" font-size="24" font-weight="bold" text-anchor="middle">{title}</text>'
+    ]
+    
+    alphas = [r['alpha'] for r in shrinkage_results]
+    accs = [r['mean_accuracy'] for r in shrinkage_results]
+    
+    min_alpha, max_alpha = min(alphas), max(alphas)
+    min_acc, max_acc = min(accs), max(accs)
+    
+    # Add padding to accuracy range
+    acc_range = max_acc - min_acc
+    if acc_range < 1e-5: acc_range = 1.0
+    min_acc_plot = max(0, min_acc - acc_range * 0.1)
+    max_acc_plot = min(1.0, max_acc + acc_range * 0.1)
+    acc_range_plot = max_acc_plot - min_acc_plot
+    
+    def to_px(a, acc):
+        px = margin["left"] + ((a - min_alpha) / (max_alpha - min_alpha)) * plot_w
+        py = margin["top"] + plot_h - ((acc - min_acc_plot) / acc_range_plot) * plot_h
+        return px, py
+
+    # Draw grid and axes
+    svg.append(f'  <g stroke="#ffffff" stroke-opacity="0.2" stroke-width="1">')
+    # Y-axis ticks (Accuracy)
+    num_ticks = 5
+    for i in range(num_ticks + 1):
+        tick_acc = min_acc_plot + i * (acc_range_plot / num_ticks)
+        y = margin["top"] + plot_h - i * (plot_h / num_ticks)
+        svg.append(f'    <line x1="{margin["left"]}" y1="{y}" x2="{W - margin["right"]}" y2="{y}"/>')
+        svg.append(f'    <text x="{margin["left"] - 10}" y="{y + 5}" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end">{tick_acc:.3f}</text>')
+    
+    # X-axis ticks (Alpha)
+    for a in alphas:
+        px, _ = to_px(a, 0)
+        y = margin["top"] + plot_h
+        svg.append(f'    <line x1="{px}" y1="{margin["top"]}" x2="{px}" y2="{y}"/>')
+        svg.append(f'    <text x="{px}" y="{y + 25}" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">{a:.1f}</text>')
+    svg.append(f'  </g>')
+
+    # Axis Labels
+    svg.append(f'  <text x="{W/2}" y="{H - 15}" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle">Shrinkage (α)</text>')
+    svg.append(f'  <text x="25" y="{H/2}" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle" transform="rotate(-90 25 {H/2})">Cross-Validation Accuracy</text>')
+    
+    # Draw line
+    path_d = []
+    points_svg = []
+    for r in shrinkage_results:
+        px, py = to_px(r['alpha'], r['mean_accuracy'])
+        if not path_d:
+            path_d.append(f"M {px} {py}")
+        else:
+            path_d.append(f"L {px} {py}")
+            
+        color = "#ff6b7a" if r['alpha'] == best_alpha else "#52d9cb"
+        r_size = 6 if r['alpha'] == best_alpha else 4
+        points_svg.append(f'  <circle cx="{px}" cy="{py}" r="{r_size}" fill="{color}"/>')
+
+    svg.append(f'  <path d="{" ".join(path_d)}" fill="none" stroke="#52d9cb" stroke-width="3"/>')
+    svg.extend(points_svg)
+    
+    svg.append('</svg>')
+    
+    
+    with open(out_path, "w") as f:
+        f.write("\n".join(svg))
+    print(f"  [Plot] Saved: {out_path}")
+    return out_path
+
+
+def bar_chart_k_accuracy(k_results, best_k, 
+                         title="Number of Components (K) vs Accuracy", 
+                         out_path="outputs/figures/k_accuracy.svg"):
+    """
+    Create a bar chart showing cross-validation accuracy for each K.
+    
+    Parameters
+    ----------
+    k_results : list[dict]
+        Results from experiment_n_components
+    best_k : int
+        The optimal K value to highlight
+    title : str
+        Plot title
+    out_path : str
+        File path to save the SVG
+    """
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    
+    W, H = 600, 400
+    margin = {"top": 60, "right": 40, "bottom": 60, "left": 80}
+    plot_w = W - margin["left"] - margin["right"]
+    plot_h = H - margin["top"] - margin["bottom"]
+    
+    svg = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">',
+        f'  <rect width="{W}" height="{H}" fill="#1a1a2e"/>',
+        f'  <text x="{W/2}" y="35" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="bold" text-anchor="middle">{title}</text>'
+    ]
+    
+    ks = [r['k'] for r in k_results]
+    accs = [r['cv_accuracy'] for r in k_results]
+    
+    min_acc, max_acc = min(accs), max(accs)
+    # Give some headroom and bottom room
+    acc_range = max_acc - min_acc
+    if acc_range < 1e-5: acc_range = 0.5
+    min_acc_plot = max(0, min_acc - acc_range * 0.2)
+    max_acc_plot = min(1.0, max_acc + acc_range * 0.2)
+    acc_range_plot = max_acc_plot - min_acc_plot
+    
+    # Draw grid and axes
+    svg.append(f'  <g stroke="#ffffff" stroke-opacity="0.2" stroke-width="1">')
+    # Y-axis ticks
+    num_ticks = 5
+    for i in range(num_ticks + 1):
+        tick_acc = min_acc_plot + i * (acc_range_plot / num_ticks)
+        y = margin["top"] + plot_h - i * (plot_h / num_ticks)
+        svg.append(f'    <line x1="{margin["left"]}" y1="{y}" x2="{W - margin["right"]}" y2="{y}"/>')
+        svg.append(f'    <text x="{margin["left"] - 10}" y="{y + 5}" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="end" stroke="none">{tick_acc:.3f}</text>')
+    svg.append(f'  </g>')
+
+    # Axis Labels
+    svg.append(f'  <text x="{W/2}" y="{H - 15}" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle">Number of Components (K)</text>')
+    svg.append(f'  <text x="25" y="{H/2}" fill="#ffffff" font-family="sans-serif" font-size="16" text-anchor="middle" transform="rotate(-90 25 {H/2})">Cross-Validation Accuracy</text>')
+    
+    # Draw bars
+    bar_width = min(80, plot_w / (len(ks) + 1))
+    spacing = (plot_w - (bar_width * len(ks))) / (len(ks) + 1)
+    
+    for i, r in enumerate(k_results):
+        k = r['k']
+        acc = r['cv_accuracy']
+        
+        x = margin["left"] + spacing + i * (bar_width + spacing)
+        bar_h = ((acc - min_acc_plot) / acc_range_plot) * plot_h
+        y = margin["top"] + plot_h - bar_h
+        
+        color = "#e9c46a" if k == best_k else "#2a9d8f"
+        
+        svg.append(f'  <rect x="{x}" y="{y}" width="{bar_width}" height="{bar_h}" fill="{color}" rx="4" ry="4"/>')
+        svg.append(f'  <text x="{x + bar_width/2}" y="{y - 10}" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">{acc*100:.1f}%</text>')
+        
+        # X-axis label
+        svg.append(f'  <text x="{x + bar_width/2}" y="{margin["top"] + plot_h + 20}" fill="#a0a0b0" font-family="sans-serif" font-size="14" text-anchor="middle">{k}</text>')
+
+    svg.append('</svg>')
+    
+    with open(out_path, "w") as f:
+        f.write("\n".join(svg))
+    print(f"  [Plot] Saved: {out_path}")
+    return out_path
